@@ -10,3 +10,7 @@
 # Ignora directorios generados automáticamente
 /node_modules
 /dist
+/basura
+/images
+/results
+/exp_toy_result
