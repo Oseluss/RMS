@@ -1,0 +1,12 @@
+# Ignora archivos compilados
+*.class
+*.o
+*.pyc
+
+# Ignora archivos de configuración local
+.env
+.env.*
+
+# Ignora directorios generados automáticamente
+/node_modules
+/dist
