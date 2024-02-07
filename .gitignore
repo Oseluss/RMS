@@ -1,3 +1,6 @@
+# Ignora los archivos de salida
+*.out
+
 # Ignora archivos compilados
 *.class
 *.o

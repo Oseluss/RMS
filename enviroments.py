@@ -119,6 +119,18 @@ def checkfilter(actual_sell,C,A_ij,filter):
                     filter[j] = 0
     return filter
 
+def integer_to_binary_tuple(integer, word_size):
+    # Obtener la representación binaria del número entero sin el prefijo '0b'
+    binary_str = bin(integer)[2:]
+
+    # Asegurarse de que la cadena binaria tenga el tamaño deseado llenando con ceros a la izquierda si es necesario
+    binary_str = binary_str.zfill(word_size)
+
+    # Crear una tupla con cada bit del número binario
+    binary_tuple = tuple(int(bit) for bit in binary_str)
+
+    return binary_tuple
+
 class env_red:
 
     def __init__(self,L,v_lj,r_j,C,T,I,A_ij,J,p_l,lambd,demand_model = "Exp") -> None:
@@ -409,4 +421,74 @@ def env_red1():
 
     env = env_red(L,v_lj,r_j,c_i,T,I,A_ij,J,p_l,lambd)
 
+    return env
+
+def env_hubs0():
+
+    # Max time for departure
+    T = 1000 #Max time
+    time = np.arange(1, T) #TIme index
+
+    #Set of products
+    J = 66 #Num of products
+    r_j = np.array([300,400,350,300,500,300,400,350,300,
+           750,800,800,700,    750,800,800,700,
+           1050,1100,1100,1050,
+           1150,1200,1200,1150,
+           1100,1150,1150,1100,
+           1050,1100,1100,1050,]) #Price for products
+
+    r_j = np.concatenate((r_j, 1.5*r_j), axis=0)
+
+    #Set of resoruces
+    I = 9 #Soruce/Fly legs
+
+    #Explore diferent initials capacity
+    alpha = 1
+    c_i = alpha*np.array([100,80,100,100,150,100,80,100,100]) #Capacity for fly leg
+
+    #Customer segment
+    L = 6 #Types of customer
+    p_l = np.array([0.08, 0.2, 0.05, 0.2, 0.1, 0.15, 0.02, 0.05, 0.02, 0.04]) #Probabilidad de pertenecer a un segmento
+    lambd = 1 #PRobabilidad de llegada de un cliente
+    lambd_l = lambd*p_l
+
+    #Adjacency matrix Fligt products
+    A_ij = np.array([
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
+        [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0],
+        [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0],
+        [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1],
+    ])
+
+    A_ij = np.concatenate((A_ij, A_ij), axis=0)
+
+    #Weigjt of MNL
+    v_0 = [5,10]
+    v_j1 = [20,10]
+    v_j2 = [4,20]
+
+    print("Hola")
+    def compute_v_lj(v_0, v_j1, v_j2):
+        v_lj = np.zeros((2*J,2*J+1))
+        for j in range(J):
+            v_lj[2*j,0] = v_0[0]
+            v_lj[2*j+1,0] = v_0[1]
+
+            v_lj[2*j,j+1] = v_j1[0]
+            v_lj[2*j,j+1+J] = v_j1[1]
+            
+            v_lj[2*j+1,j+1] = v_j2[0]
+            v_lj[2*j+1,j+1+J] = v_j2[1]
+        return v_lj
+
+    v_lj = compute_v_lj(v_0, v_j1, v_j2)
+
+    env = env_red(L,v_lj,r_j,c_i,T,I,A_ij,J,p_l,lambd)
+    
     return env

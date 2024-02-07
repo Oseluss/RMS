@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from dataclasses import dataclass
 import random
-from enviroments import env_red_toy
+from enviroments import env_red_toy1
 import pickle
 from algorithms.Action_Gen import Action_generation
 from algorithms.RDQL import RDQL_algorithm
@@ -14,39 +14,37 @@ from algorithms.models import QfunNN, QfunPARAFAC
 from algorithms.DQL import DQL_algorithm
 from algorithms.QL_LowRank import LRQL_algorithm
 
-NUMERO_DE_NUCLEOS = 16
+NUMERO_DE_NUCLEOS = 64
 torch.set_num_threads(NUMERO_DE_NUCLEOS)
 
-name_exp = "Exp1"
+name_exp = "Exp6"
 Red_name = "Toy"
 Demand_Model = "Exp" #Puede ser EXP/MNL
-Qfun_model = "LR" #Puede ser LR/NN
+Qfun_model = "NN" #Puede ser LR/NN
 
 #Tamaño del run
-n = 1
+n = 2
 
-env = env_red_toy(Demand_Model)
+T = 400
+env = env_red_toy1(Demand_Model,T)
 
 #Hiperarametros del algoritmo
 gamma = 1
 alpha = 1e-4
 eps = 1.0
-eps_decay = 0.999997**(1/n)
+eps_decay = 0.999997**(1/n*(env.T/50))
 batch_size = 200
 
 #Tamaño de la ejecución
 max_episodes = 70000*n
-max_steps = 100
+max_steps = T
 
 #Hiperparametros del modelo
 if Qfun_model == "NN":
     num_inputs = env.I + 1
     exp_layers =[
-        [128,128],
-        [64,64],
-        [128],
-        [64],
-        [32]
+        [128,128,128],
+        [128,128]
     ]
     num_outputs = len(env.action_space)
     num_exp = len(exp_layers)
@@ -80,13 +78,13 @@ for i in range(num_exp):
         opt = torch.optim.Adam(qfun.parameters(), lr=alpha)
         
         start_time = time.time()
-        qfun, Rs, eps = DQL_algorithm(max_episodes,max_steps, env, qfun,eps_decay,opt,gamma,batch_size,num_outputs)
+        qfun, Rs, eps = DQL_algorithm(max_episodes,max_steps,50_000, env, qfun,eps_decay,opt,gamma,batch_size,num_outputs)
         end_time = time.time()
         execution_time = end_time - start_time
 
     elif Qfun_model == "AG":
         start_time = time.time()
-        qfun, env, R_over = RDQL_algorithm(max_episodes,max_steps, env,eps_decay,gamma,batch_size,alpha, nA_initial,exp_layers[i])
+        qfun, env, Rs = RDQL_algorithm(max_episodes,max_steps, env,eps_decay,gamma,batch_size,alpha, nA_initial,exp_layers[i])
         end_time = time.time()
         execution_time = end_time - start_time
 
@@ -95,11 +93,11 @@ for i in range(num_exp):
         opt = torch.optim.Adam(qfun.parameters(), lr=alpha)
 
         start_time = time.time()
-        qfun, Rs, eps = LRQL_algorithm(max_episodes,max_steps, env, qfun ,eps_decay,opt,gamma,batch_size,len(env.action_space))
+        qfun, Rs, eps = LRQL_algorithm(max_episodes,max_steps,50_000, env, qfun ,eps_decay,opt,gamma,batch_size,len(env.action_space))
         end_time = time.time()
         execution_time = end_time - start_time
 
-    R_exp.append(R_over)
+    R_exp.append(Rs)
     time_exp.append(execution_time)
     qfun_exp.append(qfun)
     a_space_exp.append(env.action_space)

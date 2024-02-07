@@ -74,7 +74,7 @@ def get_maximun(env, Qfun_list, model, dims):
 
     return max_list
 
-def saveGIFT(env, Qfun_list, model, dims, name):
+def saveGIFT(env, Qfun_list, model, escale, dims, name):
     num_plots = len(Qfun_list)
 
     # Función para generar datos de la imagen
@@ -93,6 +93,8 @@ def saveGIFT(env, Qfun_list, model, dims, name):
                     data[x1, x2] = torch.max(Qfun(s)).item()
                 elif model == "LR":
                     data[x1, x2] = torch.max(Qfun(torch.tensor(np.array(s), dtype=torch.long).view(1, -1))).item()
+            if escale == "log":
+                data = np.log10(data)
             all_data.append(data)
         return all_data
 
@@ -104,7 +106,7 @@ def saveGIFT(env, Qfun_list, model, dims, name):
             plt.subplot(1, num_plots, i + 1)
             plt.imshow(data, cmap='inferno', interpolation='nearest', vmin=0,vmax=max_list[i])
             plt.colorbar()  # Agregar barra de colores para referencia
-            plt.title(f'V(s)-{model}_toy, Frame {frame}')
+            plt.title(f'V(s)-{model}, Frame {frame}')
             plt.xlabel(f'Asientos vendidos, x{dims[0]+1}')
             plt.ylabel(f'Asientos vendidos, x{dims[1]+1}')
 
@@ -117,6 +119,8 @@ def saveGIFT(env, Qfun_list, model, dims, name):
 
     # Crear la animación
     max_list =  get_maximun(env, Qfun_list, model, dims)
+    if escale == "log":
+        max_list = np.log10(max_list)
     animation = FuncAnimation(fig, animate, frames=env.T, interval=200, fargs=(Qfun_list,max_list,))
     
     # Guardar la animación en un archivo GIF
