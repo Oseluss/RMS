@@ -161,12 +161,15 @@ class env_red:
         self.model = demand_model
         
         #Action space
-        self.action_space = list(product([0,1], repeat=J))
+        self.action_space = []
         
     def step(self,u):
         x = self.x
-        t = self.t 
-        a = self.action_space[u]
+        t = self.t
+        if len(self.action_space) == 0:
+            a = integer_to_binary_tuple(u, self.J)
+        else:
+            a = self.action_space[u]
         if self.model == "MNL":
             a = a*self.filter
         dist = P_j_dist(a,self.L,self.v_lj,self.p_l,self.lambd,self.model)
