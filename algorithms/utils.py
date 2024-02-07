@@ -32,7 +32,7 @@ def sim_trayectorias(env,Qfun,num_sim,max_steps,nA,model = "NN"):
             if model == "NN":
                 a = select_action(Qfun, s, 0, nA)
             if model == "LR":
-                a = select_action_LR(Qfun, s, 0, len(env.action_space))
+                a = select_action_LR(Qfun, s, 0, nA)
 
             s_prime, r, done, _, _ = env.step(a)
             

@@ -7,8 +7,27 @@ import torch
 import numpy as np
 from .models import QfunNN
 
-def action_space_generation(J,ini_num_actions):
-    return random.sample(list(product([0,1], repeat=J)), ini_num_actions)
+def integer_to_binary_tuple(integer, word_size):
+    # Obtener la representación binaria del número entero sin el prefijo '0b'
+    binary_str = bin(integer)[2:]
+
+    # Asegurarse de que la cadena binaria tenga el tamaño deseado llenando con ceros a la izquierda si es necesario
+    binary_str = binary_str.zfill(word_size)
+
+    # Crear una tupla con cada bit del número binario
+    binary_tuple = tuple(int(bit) for bit in binary_str)
+
+    return binary_tuple
+
+def action_space_generation(J, ini_num_actions):
+    action_space = list()  # Usamos un conjunto para asegurarnos de que no haya duplicados
+
+    # Generamos ini_num_actions muestras únicas
+    while len(action_space) < ini_num_actions:
+        action = random.randint(0, 2**J-1)  # Genera un entero aleatorio de J bits
+        action_space.append(integer_to_binary_tuple(action, J))  # Agrega la acción al conjunto
+
+    return action_space
 
 def ini_action_list(action_space):
     action_list = []
