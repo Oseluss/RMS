@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from dataclasses import dataclass
 import random
-from enviroments import env_red_toy1
+from enviroments import env_hubs0
 import pickle
 from algorithms.Action_Gen import Action_generation
 from algorithms.RDQL import RDQL_algorithm
@@ -18,19 +18,19 @@ NUMERO_DE_NUCLEOS = 64
 torch.set_num_threads(NUMERO_DE_NUCLEOS)
 
 name_exp = "Exp6"
-Red_name = "Toy"
+Red_name = "hubs0"
 Demand_Model = "Exp" #Puede ser EXP/MNL
-Qfun_model = "NN" #Puede ser LR/NN
+Qfun_model = "LR" #Puede ser LR/NN
 
 #Tamaño del run
-n = 2
+n = 1
 
-T = 400
-env = env_red_toy1(Demand_Model,T)
+T = 2000
+env = env_hubs0(Demand_Model,T)
 
 #Hiperarametros del algoritmo
 gamma = 1
-alpha = 1e-4
+alpha = 1e-3
 eps = 1.0
 eps_decay = 0.999997**(1/n*(env.T/50))
 batch_size = 200
@@ -60,9 +60,11 @@ elif Qfun_model == "AG":
     num_exp = len(exp_layers)
 
 elif Qfun_model == "LR":
-    exp_ranks = [2,4,5,15,20]
+    exp_ranks = [5,15,20]
     num_exp = len(exp_ranks)
-    tensor_dims = [env.C[0]+1, env.C[1]+1,env.T+1, len(env.action_space)]
+    tensor_dims = list(env.C + 1)
+    tensor_dims.append(env.T+1)
+    tensor_dims.append(2**(env.J))
 
 
 R_exp = []
@@ -93,7 +95,7 @@ for i in range(num_exp):
         opt = torch.optim.Adam(qfun.parameters(), lr=alpha)
 
         start_time = time.time()
-        qfun, Rs, eps = LRQL_algorithm(max_episodes,max_steps,50_000, env, qfun ,eps_decay,opt,gamma,batch_size,len(env.action_space))
+        qfun, Rs, eps = LRQL_algorithm(max_episodes,max_steps,10_000, env, qfun ,eps_decay,opt,gamma,batch_size,2**(env.J))
         end_time = time.time()
         execution_time = end_time - start_time
 

@@ -1,6 +1,8 @@
 from itertools import combinations, product
 import numpy as np
 import pickle
+import time
+
 
 def pacum2pproduct(p_acumulada):
     p_j = []
@@ -85,39 +87,6 @@ class env_p2p():
         if self.model == "DQL":
             return np.array([x , t])
 
-def P_lj(S,l,j,v_lj,model):
-    if model == "Exp":
-        return v_lj[l,j+1]/(v_lj[l,0]+(v_lj[l,1:]).sum())
-    if model == "MNL":
-        return v_lj[l,j+1]/(v_lj[l,0]+(S*v_lj[l,1:]).sum())
-
-
-#Probaiblidad de que se selecione un producto j, por cualquier tipo de cliente
-def P_j(S,L,j,v_lj,p_l,model):
-    return sum([p_l[l]*P_lj(S,l,j,v_lj,model) for l in range(L)])
-
-#Distribución de reserva de los productos
-def P_j_dist(a,L,v_lj,p_l,lambd,model):
-    list = []
-    for j, a_j in enumerate(a):
-        if a_j == 1:
-            list.append(lambd*P_j(a,L,j,v_lj,p_l,model))
-        else:
-            list.append(0)
-    P_reserva = sum(list)
-    list.insert(0, 1-P_reserva)
-    return list
-
-def fligths_full(x,C):
-    return np.linalg.norm(x-C) == 0
-
-def checkfilter(actual_sell,C,A_ij,filter):
-    for i in range(len(C)):
-        if actual_sell[i] == C[i]:
-            for j in range(len(filter)):
-                if A_ij[i,j] == 1:
-                    filter[j] = 0
-    return filter
 
 def integer_to_binary_tuple(integer, word_size):
     # Obtener la representación binaria del número entero sin el prefijo '0b'
@@ -130,6 +99,12 @@ def integer_to_binary_tuple(integer, word_size):
     binary_tuple = tuple(int(bit) for bit in binary_str)
 
     return binary_tuple
+
+def myfun(j,a_j, a, env):
+    if a_j == 1:
+        return env.lambd*env.P_j(a,j)
+    else:
+        return 0
 
 class env_red:
 
@@ -162,7 +137,39 @@ class env_red:
         
         #Action space
         self.action_space = []
-        
+
+        self.vectorizedfun = np.vectorize(self.P_lj, signature='(n),()->(m)')
+
+    def P_lj(self, S, j):
+        if self.model == "Exp":
+            return self.v_lj[:,j+1]/(self.v_lj[:,0]+np.sum(self.v_lj[:,1:],axis=1))
+        if self.model == "MNL":
+            return self.v_lj[:,j+1]/(self.v_lj[:,0]+np.sum(self.v_lj[:,1:]*S,axis=1))
+
+    def P_j(self, S):
+        #P_lj_values = np.array([self.P_lj(S, j) for j in range(self.J)])
+        P_lj_values = self.vectorizedfun(S,range(self.J))
+        return np.sum(self.p_l * P_lj_values, axis=1)
+
+    def P_j_dist(self, a):
+        P_j_values = self.P_j(a)
+        P_j_values[a == 0] = 0
+        P_j_values *= self.lambd
+        P_reserva = np.sum(P_j_values)
+        return np.insert(P_j_values, 0, 1 - P_reserva)
+
+
+    def fligths_full(self):
+        return np.linalg.norm(self.x - self.C) == 0
+
+    def checkfilter(self):
+        for i in range(len(self.C)):
+            if self.x[i] == self.C[i]:
+                for j in range(len(self.filter)):
+                    if self.A_ij[i,j] == 1:
+                        self.filter[j] = 0
+        return self.filter
+
     def step(self,u):
         x = self.x
         t = self.t
@@ -172,7 +179,7 @@ class env_red:
             a = self.action_space[u]
         if self.model == "MNL":
             a = a*self.filter
-        dist = P_j_dist(a,self.L,self.v_lj,self.p_l,self.lambd,self.model)
+        dist = self.P_j_dist(a)
         sample = np.random.choice(len(dist), p=dist)
         if sample == 0:
             reward = 0
@@ -188,9 +195,9 @@ class env_red:
                         reward = 0
             self.x = x + delta_x
             if self.model == "MNL":
-                self.filter = checkfilter(self.x,self.C,self.A_ij,self.filter)
+                self.filter = self.checkfilter()
             self.t = t+1
-        done =  True if fligths_full(self.x, self.C) or (self.t >= (self.T-1)) else False
+        done =  True if self.fligths_full() or (self.t >= (self.T-1)) else False
         return self._get_obs(), reward, done, {}, {}
 
 
@@ -372,7 +379,7 @@ def env_red_toy1(model,T):
 
     return env
 
-def env_red1():
+def env_red2():
 
     # Max time for departure
     T = 1000 #Max time
@@ -422,14 +429,12 @@ def env_red1():
         [v_0[1],  0,  0,  0,  0,  0,  0, 0, 0, 0,  2, 2, 0,  0,  0,  0, 0,  0, 0,  0,  0, 10, 10]
     ])
 
-    env = env_red(L,v_lj,r_j,c_i,T,I,A_ij,J,p_l,lambd)
+    env = env_red(L,v_lj,r_j,c_i,T,I,A_ij,J,p_l,lambd, demand_model="MNL")
 
     return env
 
-def env_hubs0():
+def env_hubs0(model="Exp", T=1000):
 
-    # Max time for departure
-    T = 1000 #Max time
     time = np.arange(1, T) #TIme index
 
     #Set of products
@@ -448,11 +453,13 @@ def env_hubs0():
 
     #Explore diferent initials capacity
     alpha = 1
-    c_i = alpha*np.array([100,80,100,100,150,100,80,100,100]) #Capacity for fly leg
+    c_i = alpha*np.array([60,50,70,50,150,50,70,50,60]) #Capacity for fly leg
 
     #Customer segment
-    L = 6 #Types of customer
-    p_l = np.array([0.08, 0.2, 0.05, 0.2, 0.1, 0.15, 0.02, 0.05, 0.02, 0.04]) #Probabilidad de pertenecer a un segmento
+    L = 2*J #Types of customer
+    p_class = np.array([0.8,0.2]) # He supuesto que un 20% estan dispuestos a pagar más
+    p_l = np.tile((1/J)*p_class, J) #Cada vuelo es equiprobable
+    
     lambd = 1 #PRobabilidad de llegada de un cliente
     lambd_l = lambd*p_l
 
@@ -469,14 +476,14 @@ def env_hubs0():
         [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1],
     ])
 
-    A_ij = np.concatenate((A_ij, A_ij), axis=0)
+    A_ij = np.concatenate((A_ij, A_ij), axis=1)
 
     #Weigjt of MNL
     v_0 = [5,10]
     v_j1 = [20,10]
     v_j2 = [4,20]
 
-    print("Hola")
+
     def compute_v_lj(v_0, v_j1, v_j2):
         v_lj = np.zeros((2*J,2*J+1))
         for j in range(J):
@@ -492,6 +499,6 @@ def env_hubs0():
 
     v_lj = compute_v_lj(v_0, v_j1, v_j2)
 
-    env = env_red(L,v_lj,r_j,c_i,T,I,A_ij,J,p_l,lambd)
+    env = env_red(L,v_lj,r_j,c_i,T,I,A_ij,J,p_l,lambd,demand_model=model)
     
     return env
