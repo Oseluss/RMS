@@ -138,27 +138,41 @@ class env_red:
         #Action space
         self.action_space = []
 
-        self.vectorizedfun = np.vectorize(self.P_lj, signature='(n),()->(m)')
+        #self.vectorizedfun = np.vectorize(self.P_lj, signature='(n),()->(m)')
 
+    #Para un j la probabilidad de compra de cada uno de los l
     def P_lj(self, S, j):
         if self.model == "Exp":
             return self.v_lj[:,j+1]/(self.v_lj[:,0]+np.sum(self.v_lj[:,1:],axis=1))
         if self.model == "MNL":
             return self.v_lj[:,j+1]/(self.v_lj[:,0]+np.sum(self.v_lj[:,1:]*S,axis=1))
 
+    #La probabilidad de selección de los productos dada una acción (suponiendo que se produce la llegada de un cliente)
     def P_j(self, S):
-        #P_lj_values = np.array([self.P_lj(S, j) for j in range(self.J)])
-        P_lj_values = self.vectorizedfun(S,range(self.J))
-        return np.sum(self.p_l * P_lj_values, axis=1)
+        P_lj_values = np.array([self.P_lj(S, j) for j in range(self.J)])
+        #P_lj_values = self.vectorizedfun(S,range(self.J))
+        P_lj_values = np.sum(self.p_l * P_lj_values, axis=1)
+        P_lj_values[S == 0] = 0
+        return P_lj_values
 
+    #Distribución de compra siendo el primer elemento la probabilidad de no comprar
     def P_j_dist(self, a):
         P_j_values = self.P_j(a)
-        P_j_values[a == 0] = 0
         P_j_values *= self.lambd
         P_reserva = np.sum(P_j_values)
         return np.insert(P_j_values, 0, 1 - P_reserva)
-
-
+    
+    #Distribución de compra de un cliente l siendo el primer elemento la probabilidad de no comprar
+    def P_j_dist_dado_l(self,a,l):
+        if self.model == "Exp":
+            P_j_l = np.array([self.v_lj[l,j+1]/(self.v_lj[l,0]+np.sum(self.v_lj[l,1:])) for j in range(self.J)])
+        if self.model == "MNL":
+            P_j_l = np.array([self.v_lj[l,j+1]/(self.v_lj[l,0]+np.sum(self.v_lj[l,1:]*a)) for j in range(self.J)])
+        P_j_l *= a
+        P_l_reserva = np.sum(P_j_l)
+        return np.insert(P_j_l, 0, 1 - P_l_reserva)
+        
+        
     def fligths_full(self):
         return np.linalg.norm(self.x - self.C) == 0
 
@@ -179,8 +193,14 @@ class env_red:
             a = self.action_space[u]
         if self.model == "MNL":
             a = a*self.filter
-        dist = self.P_j_dist(a)
-        sample = np.random.choice(len(dist), p=dist)
+
+        if np.random.choice([0,1],p=[1-self.lambd, self.lambd]) == 1:
+            clinet = np.random.choice(self.L,p=self.p_l)
+            dist = self.P_j_dist_dado_l(a,clinet)
+            sample = np.random.choice(len(dist), p=dist)
+        else:
+            sample = 0
+        
         if sample == 0:
             reward = 0
             self.t = t+1
@@ -436,9 +456,12 @@ def env_red2():
 def env_hubs0(model="Exp", T=1000):
 
     time = np.arange(1, T) #TIme index
-
+    #Mercados
+    M = 33
+    #Tarifas por mercado
+    F = 2
     #Set of products
-    J = 66 #Num of products
+    J = M*F #Num of products
     r_j = np.array([300,400,350,300,500,300,400,350,300,
            750,800,800,700,    750,800,800,700,
            1050,1100,1100,1050,
@@ -456,9 +479,9 @@ def env_hubs0(model="Exp", T=1000):
     c_i = alpha*np.array([60,50,70,50,150,50,70,50,60]) #Capacity for fly leg
 
     #Customer segment
-    L = 2*J #Types of customer
+    L = 2*M #Types of customer
     p_class = np.array([0.8,0.2]) # He supuesto que un 20% estan dispuestos a pagar más
-    p_l = np.tile((1/J)*p_class, J) #Cada vuelo es equiprobable
+    p_l = np.tile((1/M)*p_class, M) #Cada vuelo es equiprobable
     
     lambd = 1 #PRobabilidad de llegada de un cliente
     lambd_l = lambd*p_l
@@ -485,16 +508,16 @@ def env_hubs0(model="Exp", T=1000):
 
 
     def compute_v_lj(v_0, v_j1, v_j2):
-        v_lj = np.zeros((2*J,2*J+1))
-        for j in range(J):
-            v_lj[2*j,0] = v_0[0]
-            v_lj[2*j+1,0] = v_0[1]
+        v_lj = np.zeros((2*M,2*M+1))
+        for i in range(M):
+            v_lj[2*i,0] = v_0[0]
+            v_lj[2*i+1,0] = v_0[1]
 
-            v_lj[2*j,j+1] = v_j1[0]
-            v_lj[2*j,j+1+J] = v_j1[1]
+            v_lj[2*i,i+1] = v_j1[0]
+            v_lj[2*i,i+1+M] = v_j1[1]
             
-            v_lj[2*j+1,j+1] = v_j2[0]
-            v_lj[2*j+1,j+1+J] = v_j2[1]
+            v_lj[2*i+1,i+1] = v_j2[0]
+            v_lj[2*i+1,i+1+M] = v_j2[1]
         return v_lj
 
     v_lj = compute_v_lj(v_0, v_j1, v_j2)
