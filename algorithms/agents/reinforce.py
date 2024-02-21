@@ -107,7 +107,7 @@ class ReinforceSoftmaxNN:
         # Stochastic Gradient Ascent
         for _ in range(self.epochs):
             logprobs = self.policy.evaluate_logprob(states, actions)
-            logprobs = torch.prod(logprobs, dim=1)
+            logprobs = torch.sum(logprobs, dim=1)
             loss_actor = -advantages*logprobs
             self.opt_actor.zero_grad()
             loss_actor.mean().backward()

@@ -1,5 +1,6 @@
 from typing import Tuple
 import torch
+from .utils import sim_trayectorias
 
 class Trainer:
     def __init__(self, actor_opt, critic_opt):
@@ -34,6 +35,11 @@ class Trainer:
     ):
         returns = []
         timesteps = []
+
+        Rs = []
+        muestreador = 100
+        num_sim = 10
+
         for epoch in range(epochs):
             state, _ = env.reset()
             cum_reward = 0
@@ -58,5 +64,13 @@ class Trainer:
                 state = state_next
             returns.append(cum_reward)
             timesteps.append(t)
-            print(f'{epoch}/{epochs}: {returns[-1]} \r', end='')
-        return agent, returns, timesteps
+
+            #Probar como de bien funciona sin modificar
+            if epoch % muestreador == 0:
+                Rsamplig, _, _, _ = sim_trayectorias(env,agent,num_sim,max_steps,0,model = "PG")
+                Rs.append(Rsamplig)
+
+            timesteps.append(t)
+            print(f'{epoch}/{epochs}: {sum(Rs[-1])/(len(Rs[-1]))} \r', end='')
+
+        return agent, Rs,timesteps

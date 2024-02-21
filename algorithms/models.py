@@ -53,6 +53,7 @@ class PolicyPARAFAC(torch.nn.Module):
 
         self.k = k
         self.n_factors = len(dims)
+        self.dims = dims
 
         factors = []
         for dim in dims:
@@ -65,8 +66,9 @@ class PolicyPARAFAC(torch.nn.Module):
             self.log_sigma = torch.nn.Parameter(torch.zeros(1))
 
     def forward(self, indices):
+        indices=torch.tensor(indices,dtype=torch.long)
         if len(indices.shape) == 1:
-            indices=torch.tensor(indices,dtype=torch.long).view(1, -1)
+            indices = indices.view(1, -1)
         bsz = indices.shape[0]
         prod = torch.ones(bsz, self.k, dtype=torch.double)
         for i in range(indices.shape[1]):
@@ -75,15 +77,16 @@ class PolicyPARAFAC(torch.nn.Module):
             prod *= factor[idx, :]
         if indices.shape[1] < len(self.factors):
             res = []
+            nA = len(self.factors)-indices.shape[1]
             for cols in zip(
-                *[self.factors[-(a + 1)].t() for a in reversed(range(len(self.factors)-indices.shape[1]))]
+                *[self.factors[-(a + 1)].t() for a in reversed(range(nA))]
             ):
                 kr = cols[0]
-                for j in range(1, self.nA):
+                for j in range(1, nA):
                     kr = torch.kron(kr, cols[j])
                 res.append(kr)
             factors_action = torch.stack(res, dim=1)
-            return torch.matmul(prod, factors_action.T)
+            return torch.matmul(prod, factors_action.T).view(-1, *self.dims[-nA:])
         else:
             res = torch.sum(prod, dim=-1)
         if self.model == 'gaussian':
@@ -105,6 +108,9 @@ class ValuePARAFAC(torch.nn.Module):
         self.factors = torch.nn.ParameterList(factors)
 
     def forward(self, indices):
+        indices=torch.tensor(indices,dtype=torch.long)
+        if len(indices.shape) == 1:
+            indices=indices.view(1, -1)
         bsz = indices.shape[0]
         prod = torch.ones(bsz, self.k, dtype=torch.double)
         for i in range(indices.shape[1]):

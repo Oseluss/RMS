@@ -378,7 +378,7 @@ def env_red_toy1(model,T):
 
     #Customer segment
     L = 4 #Types of customer
-    p_l = np.array([0.1, 0.15, 0.2, 0.05]) #Probabilidad de pertenecer a un segmento
+    p_l = np.array([0.2, 0.3, 0.4, 0.1]) #Probabilidad de pertenecer a un segmento
     lambd = 1 #PRobabilidad de llegada de un cliente
     lambd_l = lambd*p_l
 
