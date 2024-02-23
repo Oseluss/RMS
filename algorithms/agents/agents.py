@@ -34,7 +34,7 @@ class SoftmaxAgent(nn.Module):
         # Actor
         dist = self.pi(state)
         action_logprob = dist.log_prob(action)
-        return action_logprob.squeeze()
+        return torch.sum(action_logprob.squeeze(), dim=1) 
 
     def evaluate_value(self, state: torch.Tensor) -> torch.Tensor:
         # Critic
@@ -49,5 +49,5 @@ class SoftmaxAgent(nn.Module):
     def act(self, state: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         dist = self.pi(state)
         action = dist.sample()
-        action_logprob = dist.log_prob(action)
+        action_logprob = torch.sum(dist.log_prob(action))
         return action.detach().flatten(), action_logprob.detach().flatten()

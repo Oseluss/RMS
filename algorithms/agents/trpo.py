@@ -8,7 +8,7 @@ from torch.nn.utils.convert_parameters import parameters_to_vector
 from torch.nn.utils.convert_parameters import vector_to_parameters
 
 from algorithms.utils import Buffer
-from algorithms.agents import GaussianAgent, SoftmaxAgent
+from algorithms.agents.agents import SoftmaxAgent
 
 
 class TRPOSoftmaxNN:
@@ -57,7 +57,7 @@ class TRPOSoftmaxNN:
         self.buffer.actions.append(action)
         self.buffer.logprobs.append(action_logprob)
 
-        return action.item()
+        return action
 
     def calculate_returns(self, values) -> List[float]:
         returns = []

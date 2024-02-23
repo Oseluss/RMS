@@ -53,7 +53,7 @@ class PPOSoftmaxNN:
         self.buffer.actions.append(action)
         self.buffer.logprobs.append(action_logprob)
 
-        return action.item()
+        return action
 
     def calculate_returns(self, values) -> List[float]:
         returns = []
