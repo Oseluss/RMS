@@ -18,13 +18,15 @@ class ReinforceSoftmaxNN:
             tau=0.97,
             epochs: int=1000,
             lr_actor=1e-2,
+            device = torch.device("cuda")
         ):
         self.gamma = gamma
         self.tau = tau
         self.epochs = epochs
+        self.device = device
 
         self.buffer = Buffer()
-        self.policy = SoftmaxAgent(actor, critic, discretizer_actor, discretizer_critic)
+        self.policy = SoftmaxAgent(actor, critic, discretizer_actor, discretizer_critic,device)
         self.opt_actor = torch.optim.Adam(self.policy.actor.parameters(), lr_actor)
 
         self.opt_critic = torch.optim.LBFGS(
@@ -36,7 +38,7 @@ class ReinforceSoftmaxNN:
 
     def select_action(self, state: np.ndarray) -> np.ndarray:
         with torch.no_grad():
-            state = torch.as_tensor(state).double()
+            state = torch.as_tensor(state, device=self.device).double()
             action, action_logprob = self.policy.act(state)
 
         self.buffer.states.append(state)
@@ -67,8 +69,8 @@ class ReinforceSoftmaxNN:
             prev_value = values[i]
             prev_advantage = actual_advantage
 
-        returns = torch.as_tensor(returns).double().detach().squeeze()
-        advantages = torch.as_tensor(advantages).double().detach().squeeze()
+        returns = torch.as_tensor(returns, device=self.device).double().detach().squeeze()
+        advantages = torch.as_tensor(advantages, device=self.device).double().detach().squeeze()
         advantages = (advantages - advantages.mean())/advantages.std()
 
         return returns, advantages
@@ -86,7 +88,7 @@ class ReinforceSoftmaxNN:
 
         # GAE estimation
         values = self.policy.evaluate_value(states)
-        rewards, advantages = self.calculate_returns(values.data.numpy())
+        rewards, advantages = self.calculate_returns(values.data.cpu().numpy())
 
         # LBFGS training
         def closure():

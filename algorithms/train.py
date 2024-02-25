@@ -37,16 +37,17 @@ class Trainer:
         timesteps = []
 
         Rs = []
-        muestreador = 100
-        num_sim = 10
+        muestreador = 1
+        num_sim = 1
 
         for epoch in range(epochs):
-            state, _ = env.reset()
+            state, _ = env.set_initial(s = [0]*env.I)
             cum_reward = 0
 
             for t in range(max_steps):
                 action = agent.select_action(state)
-                state_next, reward, done, _, _ = env.step(action.tolist())
+                action = action.cpu()
+                state_next, reward, done, _, _ = env.step(action)
 
                 if t + 1 == max_steps:
                     done = True
@@ -63,14 +64,13 @@ class Trainer:
 
                 state = state_next
             returns.append(cum_reward)
-            timesteps.append(t)
 
             #Probar como de bien funciona sin modificar
-            if epoch % muestreador == 0:
+            """if epoch % muestreador == 0:
                 Rsamplig, _, _, _ = sim_trayectorias(env,agent,num_sim,max_steps,0,model = "PG")
-                Rs.append(Rsamplig)
+                Rs.append(Rsamplig) """
 
             timesteps.append(t)
-            print(f'{epoch}/{epochs}: {sum(Rs[-1])/(len(Rs[-1]))} \r', end='')
+            print(f'{epoch}/{epochs}: {returns[-1]} \r', end='')
 
-        return agent, Rs,timesteps
+        return agent, returns,timesteps

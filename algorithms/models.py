@@ -66,7 +66,7 @@ class PolicyPARAFAC(torch.nn.Module):
             self.log_sigma = torch.nn.Parameter(torch.zeros(1))
 
     def forward(self, indices):
-        indices=torch.tensor(indices,dtype=torch.long)
+        indices=indices.long()
         if len(indices.shape) == 1:
             indices = indices.view(1, -1)
         bsz = indices.shape[0]
@@ -108,7 +108,7 @@ class ValuePARAFAC(torch.nn.Module):
         self.factors = torch.nn.ParameterList(factors)
 
     def forward(self, indices):
-        indices=torch.tensor(indices,dtype=torch.long)
+        indices=indices.long()
         if len(indices.shape) == 1:
             indices=indices.view(1, -1)
         bsz = indices.shape[0]

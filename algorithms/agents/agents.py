@@ -6,7 +6,7 @@ import torch.nn as nn
 
 
 class SoftmaxAgent(nn.Module):
-    def __init__(self, actor, critic, discretizer_actor=None, discretizer_critic=None) -> None:
+    def __init__(self, actor, critic, discretizer_actor=None, discretizer_critic=None, device = torch.device("cpu")) -> None:
         super(SoftmaxAgent, self).__init__()
 
         self.actor = actor
@@ -14,9 +14,10 @@ class SoftmaxAgent(nn.Module):
 
         self.discretizer_actor = discretizer_actor
         self.discretizer_critic = discretizer_critic
+        self.device = device
 
     def pi(self, state: np.ndarray) -> torch.distributions.Normal:
-        state = torch.as_tensor(state).double()
+        state = torch.as_tensor(state, device=self.device).double()
 
         # Parameters
         if self.discretizer_actor:

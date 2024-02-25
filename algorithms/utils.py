@@ -102,7 +102,7 @@ def sim_trayectorias(env,Qfun,num_sim,max_steps,nA,model = "NN"):
             if model == "LR":
                 a = select_action_LR(Qfun, s, 0, nA)
             if model == "PG":
-                a = Qfun.policy.pi(s).sample()
+                a = Qfun.policy.pi(s).sample().cpu()
 
             s_prime, r, done, _, _ = env.step(a)
             
