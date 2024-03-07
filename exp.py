@@ -1,7 +1,7 @@
 import algorithms.train as train
 import algorithms.utils as utils
 import algorithms.models as models
-from enviroments import env_red, env_red_p2p, env_red_toy1, env_hubs1, env_hubs2
+from enviroments import env_red, env_red_p2p, env_red_toy1, env_hubs1, env_hubs4
 from algorithms.agents import reinforce, trpo, ppo
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,16 +10,16 @@ import gym
 import time
 import pickle
 
-name_exp = "Exp17"
-Red_name = "hub2-05"
+name_exp = "Exp19"
+Red_name = "hub4"
 Demand_Model = "Exp" #Puede ser EXP/MNL
 Qfun_model = "NN-PG" #Puede ser LR/NN
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
-env = env_hubs2(model="Exp", T=1000)
-M = 13
+env = env_hubs4(model="Exp")
+M = 9
 F = 2
 
 #Dimensiónes del espacio de estados
@@ -46,7 +46,7 @@ Trainer = train.Trainer("sgd", "sgd")
 
 re_agent = reinforce.ReinforceSoftmaxNN(actor, critc, gamma=.99, tau=.99, lr_actor= 1e-5,device=device)
 trpo_agent = trpo.TRPOSoftmaxNN(actor, critc, gamma=.999, tau=.999, delta=.01, cg_dampening=0.3, cg_tolerance=1e-10, cg_iteration=15,device=device)
-ppo_agent = ppo.PPOSoftmaxNN(actor, critc,gamma=.999, tau=.999, lr_actor=1e-3, epochs=1000, eps_clip=0.005,device=device)
+ppo_agent = ppo.PPOSoftmaxNN(actor, critc,gamma=.999, tau=.999, lr_actor=1e-3, epochs=50, eps_clip=0.005,device=device)
 
 R_exp = []
 time_exp = []
@@ -54,9 +54,9 @@ qfun_exp = []
 pg_model = []
 
 PG_MODEL = "PPO"
-epochs=10000
+epochs=50000
 max_steps=2000
-update_freq=3000
+update_freq=4000
 initial_offset=0
 
 if PG_MODEL == "PPO":

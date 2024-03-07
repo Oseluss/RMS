@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from dataclasses import dataclass
 import random
-from enviroments import env_hubs0
+from enviroments import env_hubs0, env_hubs3
 import pickle
 from algorithms.Action_Gen import Action_generation
 from algorithms.RDQL import RDQL_algorithm
@@ -17,22 +17,22 @@ from algorithms.QL_LowRank import LRQL_algorithm
 NUMERO_DE_NUCLEOS = 64
 torch.set_num_threads(NUMERO_DE_NUCLEOS)
 
-name_exp = "Exp6"
-Red_name = "hubs0"
+name_exp = "Exp19"
+Red_name = "hubs3"
 Demand_Model = "Exp" #Puede ser EXP/MNL
-Qfun_model = "LR" #Puede ser LR/NN
+Qfun_model = "NN" #Puede ser LR/NN
 
 #Tamaño del run
-n = 1
+n = 10
 
-T = 2000
-env = env_hubs0(Demand_Model,T)
+T = 300
+env = env_hubs3(Demand_Model)
 
 #Hiperarametros del algoritmo
 gamma = 1
 alpha = 1e-3
 eps = 1.0
-eps_decay = 0.999997**(1/n*(env.T/50))
+eps_decay = 0.999997**(1/n*(T/50))
 batch_size = 200
 
 #Tamaño de la ejecución
@@ -45,7 +45,7 @@ if Qfun_model == "NN":
     exp_layers =[
         [128,128,128]
     ]
-    num_outputs = len(env.action_space)
+    num_outputs = 2**(env.J)
     num_exp = len(exp_layers)
 
 elif Qfun_model == "AG":
