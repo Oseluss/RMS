@@ -35,7 +35,10 @@ class SoftmaxAgent(nn.Module):
         # Actor
         dist = self.pi(state)
         action_logprob = dist.log_prob(action)
-        return torch.sum(action_logprob.squeeze(), dim=1) 
+        if len(action_logprob.shape) > 1:
+            return torch.sum(action_logprob, dim=1)
+        else:
+            return action_logprob
 
     def evaluate_value(self, state: torch.Tensor) -> torch.Tensor:
         # Critic

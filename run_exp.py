@@ -43,8 +43,7 @@ max_steps = T
 if Qfun_model == "NN":
     num_inputs = env.I + 1
     exp_layers =[
-        [128,128,128],
-        [128,128]
+        [128,128,128]
     ]
     num_outputs = len(env.action_space)
     num_exp = len(exp_layers)

@@ -2,6 +2,7 @@ from itertools import combinations, product
 import numpy as np
 import pickle
 import time
+import torch
 
 
 def pacum2pproduct(p_acumulada):
@@ -187,6 +188,8 @@ class env_red:
     def step(self,u):
         x = self.x
         t = self.t
+        if torch.is_tensor(u) and u.size()== torch.Size([1]):
+            u = u.item()
         if isinstance(u, int):
             if len(self.action_space) == 0:
                 a = integer_to_binary_tuple(u, self.J)
@@ -639,6 +642,71 @@ def env_hubs2(model="Exp", T=1000):
         [0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
         [0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0],
         [0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1],
+    ])
+
+    #A_ij = np.concatenate((A_ij, A_ij), axis=1)
+
+    #Weigjt of MNL
+    v_0 = [5,10]
+    v_j1 = [20,10]
+    v_j2 = [4,20]
+
+
+    def compute_v_lj(v_0, v_j1, v_j2):
+        #v_lj = np.zeros((2*M,2*M+1))
+        v_lj = np.zeros((2*M,M+1))
+        for i in range(M):
+            v_lj[2*i,0] = v_0[0]
+            v_lj[2*i+1,0] = v_0[1]
+
+            v_lj[2*i,i+1] = v_j1[0]
+            #v_lj[2*i,i+1+M] = v_j1[1]
+            
+            v_lj[2*i+1,i+1] = v_j2[0]
+            #v_lj[2*i+1,i+1+M] = v_j2[1]
+        return v_lj
+
+    v_lj = compute_v_lj(v_0, v_j1, v_j2)
+
+    env = env_red(L,v_lj,r_j,c_i,T,I,A_ij,J,p_l,lambd,demand_model=model)
+    
+    return env
+
+def env_hubs3(model="Exp", T=300):
+
+    time = np.arange(1, T) #TIme index
+    #Mercados
+    M = 6
+    #Tarifas por mercado
+    F = 1
+    #Set of products
+    J = int(M*F) #Num of products
+    r_j = np.array([500,700,500,
+                    800,750,
+                    1100]) #Price for products
+
+    #r_j = np.concatenate((r_j, 1.5*r_j), axis=0)
+
+    #Set of resoruces
+    I = 3 #Soruce/Fly legs
+
+    #Explore diferent initials capacity
+    alpha = 1
+    c_i = alpha*np.array([30,50,40]) #Capacity for fly leg
+
+    #Customer segment
+    L = 2*M #Types of customer
+    p_class = np.array([0.8,0.2]) # He supuesto que un 20% estan dispuestos a pagar más
+    p_l = np.tile((1/M)*p_class, M) #Cada vuelo es equiprobable
+    
+    lambd = 1 #PRobabilidad de llegada de un cliente
+    lambd_l = lambd*p_l
+
+    #Adjacency matrix Fligt products
+    A_ij = np.array([
+        [1, 0, 0, 1, 0, 1],
+        [0, 1, 0, 1, 1, 1],
+        [0, 0, 1, 0, 1, 1],
     ])
 
     #A_ij = np.concatenate((A_ij, A_ij), axis=1)

@@ -10,15 +10,15 @@ import gym
 import time
 import pickle
 
-name_exp = "Exp15"
-Red_name = "hub2"
+name_exp = "Exp17"
+Red_name = "hub2-05"
 Demand_Model = "Exp" #Puede ser EXP/MNL
 Qfun_model = "NN-PG" #Puede ser LR/NN
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
-env = env_hubs2(model="Exp", T=2000)
+env = env_hubs2(model="Exp", T=1000)
 M = 13
 F = 2
 
@@ -46,7 +46,7 @@ Trainer = train.Trainer("sgd", "sgd")
 
 re_agent = reinforce.ReinforceSoftmaxNN(actor, critc, gamma=.99, tau=.99, lr_actor= 1e-5,device=device)
 trpo_agent = trpo.TRPOSoftmaxNN(actor, critc, gamma=.999, tau=.999, delta=.01, cg_dampening=0.3, cg_tolerance=1e-10, cg_iteration=15,device=device)
-ppo_agent = ppo.PPOSoftmaxNN(actor, critc,gamma=.999, tau=.999, lr_actor=1e-4, epochs=1000, eps_clip=0.005,device=device)
+ppo_agent = ppo.PPOSoftmaxNN(actor, critc,gamma=.999, tau=.999, lr_actor=1e-3, epochs=1000, eps_clip=0.005,device=device)
 
 R_exp = []
 time_exp = []
@@ -54,9 +54,9 @@ qfun_exp = []
 pg_model = []
 
 PG_MODEL = "PPO"
-epochs=20000
+epochs=10000
 max_steps=2000
-update_freq=8000
+update_freq=3000
 initial_offset=0
 
 if PG_MODEL == "PPO":
