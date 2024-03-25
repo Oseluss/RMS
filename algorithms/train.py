@@ -1,6 +1,54 @@
 from typing import Tuple
 import torch
 from .utils import sim_trayectorias
+from .utils import Buffer
+import multiprocessing as mp
+from functools import partial
+import time
+
+def worker(
+        i: int,
+        env,
+        agent,
+        epochs: int,
+        max_steps: int,
+        #result_queue,
+        #i:int, 
+):
+    start_time = time.time()   
+    torch.set_num_threads(1)
+    buffer = Buffer()
+    returns = []
+
+    for epoch in range(epochs):
+        state, _ = env.set_initial(s = [0]*env.I)
+        cum_reward = 0
+
+        for t in range(max_steps):
+            action, action_logprob = agent.select_action2(state)
+            buffer.actions.append(action)
+            buffer.logprobs.append(action_logprob)
+            action = action.cpu()
+            state_next, reward, done, _, _ = env.step(action)
+
+            if t + 1 == max_steps:
+                done = True
+
+            buffer.rewards.append(reward)
+            buffer.terminals.append(done)
+            #buffer.states.append(state)
+            buffer.states.append(torch.as_tensor(state, device=agent.device).double())
+
+            cum_reward += reward
+
+            if done:
+                break
+
+            state = state_next
+        returns.append(cum_reward)
+    end_time = time.time()
+    print(f"El tiempo de ejecución del hilo {end_time-start_time}")
+    return buffer, returns
 
 class Trainer:
     def __init__(self, actor_opt, critic_opt):
@@ -74,3 +122,37 @@ class Trainer:
             print(f'{epoch}/{epochs}: {returns[-1]} \r', end='')
 
         return agent, returns,timesteps
+
+
+    def train2(
+            self,
+            env,
+            agent,
+            epochs: int,
+            max_steps: int,
+            num_updates: int,
+            num_sim: int,
+            initial_offset: int,
+        ):
+            mp.set_start_method('spawn')
+            returns = []
+            timesteps = []
+            with mp.Pool(processes=num_sim) as pool:
+                for u in range(num_updates):
+                    
+                    results = pool.starmap(worker, [(env, agent, epochs, max_steps)]*num_sim)
+                    
+                    for result in results:
+                        agent.buffer.rewards.extend(result[0].rewards)
+                        agent.buffer.terminals.extend(result[0].terminals)
+                        #agent.buffer.states.extend(torch.as_tensor(state, device=agent.device).double() for state in result[0].states)
+                        agent.buffer.states.extend(result[0].states)
+                        agent.buffer.actions.extend(result[0].actions)
+                        agent.buffer.logprobs.extend(result[0].logprobs)
+                        returns.extend(result[1])
+
+                    self._update(agent)
+                    
+                    print(f'{u}/{num_updates}: {returns[-1]} \r', end='')
+
+            return agent, returns,timesteps

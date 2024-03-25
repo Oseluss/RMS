@@ -13,9 +13,9 @@ import pickle
 name_exp = "Exp24"
 Red_name = "hub3"
 Demand_Model = "Exp" #Puede ser EXP/MNL
-Qfun_model = "NN-PG" #Puede ser LR/NN
+Qfun_model = "NN-PG-a" #Puede ser LR/NN
 
-device = torch.device("cuda")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
 env = env_hubs3(model="Exp")
@@ -32,7 +32,7 @@ dims_action = [M, F]
 actor = models.PolicyNetwork(
     num_inputs=len(dims_state), 
     num_hiddens=[128, 128], 
-    num_outputs=[M,F], 
+    num_outputs=[2**(env.J)], 
     model="Softmax"
 ).double().to(device)
 
@@ -46,7 +46,7 @@ Trainer = train.Trainer("sgd", "sgd")
 
 re_agent = reinforce.ReinforceSoftmaxNN(actor, critc, gamma=.99, tau=.99, lr_actor= 1e-5,device=device)
 trpo_agent = trpo.TRPOSoftmaxNN(actor, critc, gamma=.999, tau=.999, delta=.01, cg_dampening=0.3, cg_tolerance=1e-10, cg_iteration=15,device=device)
-ppo_agent = ppo.PPOSoftmaxNN(actor, critc,gamma=1, tau=1, lr_actor=1e-3, epochs=50, eps_clip=0.1,betha=1e-3,device=device)
+ppo_agent = ppo.PPOSoftmaxNN(actor, critc,gamma=1, tau=1, lr_actor=1e-3, epochs=50, betha=1e-4,eps_clip=0.1,device=device)
 
 R_exp = []
 time_exp = []
@@ -74,18 +74,6 @@ elif PG_MODEL == "TRPO":
 elif PG_MODEL == "PPO":
     start_time = time.time()
     agent, totals,_ = Trainer.train(env, ppo_agent, epochs, max_steps, update_freq, initial_offset)
-    end_time = time.time()
-    execution_time = end_time - start_time
-
-elif PG_MODEL == "PPO2":
-    epochs= 1
-    max_steps=2000
-    num_updates=7000
-    num_sim = 10
-    initial_offset=0
-
-    start_time = time.time()
-    #agent, totals,_ = Trainer.train2(env, ppo_agent, epochs, max_steps, num_updates,num_sim, initial_offset)
     end_time = time.time()
     execution_time = end_time - start_time
 
@@ -126,6 +114,6 @@ plt.xlim(0, len(Rs))
 plt.grid()
 plt.ylabel("Return")
 plt.legend()
-plt.title("Mercados-PG-NN-Returns")
+plt.title("PG-NN-Returns")
     
 plt.savefig("results/"+ name_exp +"/Returns_" +Demand_Model + "_" + Qfun_model +"_" + Red_name +".png")

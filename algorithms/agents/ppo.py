@@ -19,6 +19,7 @@ class PPOSoftmaxNN:
         tau: float=0.97,
         epochs: int=1000,
         eps_clip: float=0.2,
+        betha: float = 1,
         device = torch.device("cuda")
     ) -> None:
 
@@ -33,8 +34,8 @@ class PPOSoftmaxNN:
         actor_old = deepcopy(actor)
         critic_old = deepcopy(critic)
 
-        self.policy = SoftmaxAgent(actor, critic, discretizer_actor, discretizer_critic,device)
-        self.policy_old = SoftmaxAgent(actor_old, critic_old, discretizer_actor, discretizer_critic,device)
+        self.policy = SoftmaxAgent(actor, critic, discretizer_actor, discretizer_critic, betha, device)
+        self.policy_old = SoftmaxAgent(actor_old, critic_old, discretizer_actor, discretizer_critic, betha, device)
         self.policy_old.load_state_dict(self.policy.state_dict())
 
         self.opt_actor = torch.optim.Adam(self.policy.actor.parameters(), lr_actor)
@@ -56,6 +57,17 @@ class PPOSoftmaxNN:
         self.buffer.logprobs.append(action_logprob)
 
         return action
+
+    def select_action2(self, state: np.ndarray) -> np.ndarray:
+        with torch.no_grad():
+            state = torch.as_tensor(state, device=self.device).double()
+            action, action_logprob = self.policy_old.act(state)
+
+        #self.buffer.states.append(state)
+        #self.buffer.actions.append(action)
+        #self.buffer.logprobs.append(action_logprob)
+
+        return action, action_logprob
 
     def calculate_returns(self, values) -> List[float]:
         returns = []

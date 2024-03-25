@@ -153,7 +153,7 @@ class env_red:
         P_lj_values = np.array([self.P_lj(S, j) for j in range(self.J)])
         #P_lj_values = self.vectorizedfun(S,range(self.J))
         P_lj_values = np.sum(self.p_l * P_lj_values, axis=1)
-        P_lj_values[S == 0] = 0
+        P_lj_values *= S
         return P_lj_values
 
     #Distribución de compra siendo el primer elemento la probabilidad de no comprar
@@ -188,7 +188,7 @@ class env_red:
     def step(self,u):
         x = self.x
         t = self.t
-        if torch.is_tensor(u) and u.size()== torch.Size([1]):
+        if torch.is_tensor(u) and (u.size()== torch.Size([1]) or u.size()== torch.Size([])):
             u = u.item()
         if isinstance(u, int):
             if len(self.action_space) == 0:
@@ -801,4 +801,40 @@ def env_hubs4(model="Exp", T=400):
 
     env = env_red(L,v_lj,r_j,c_i,T,I,A_ij,J,p_l,lambd,demand_model=model)
     
+    return env
+
+def env_red_toy3(model, T = 10):
+    # Max time for departure
+    time = np.arange(1, T) #TIme index
+
+    #Set of products
+    J = 3 #Num of products
+    r_j = [100,100,100] #Price for products
+
+    #Set of resoruces
+    I = 2 #Soruce/Fly legs
+
+    #Explore diferent initials capacity
+    alpha = 1
+    c_i = alpha*np.array([10,10]) #Capacity for fly leg
+
+    #Customer segment
+    L = 1 #Types of customer
+    p_l = np.array([1]) #Probabilidad de pertenecer a un segmento
+    lambd = 1 #PRobabilidad de llegada de un cliente
+    lambd_l = lambd*p_l
+
+    #Adjacency matrix Fligt products
+    A_ij = np.array([
+        [1, 0, 1],
+        [0, 1, 1]
+    ])
+
+    #Weigjt of MNL
+    v_lj = np.array([
+        [0,  1,  1,  1],
+    ])
+
+    env = env_red(L,v_lj,r_j,c_i,T,I,A_ij,J,p_l,lambd,demand_model=model)
+
     return env

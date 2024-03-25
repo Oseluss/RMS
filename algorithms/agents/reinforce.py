@@ -26,7 +26,7 @@ class ReinforceSoftmaxNN:
         self.device = device
 
         self.buffer = Buffer()
-        self.policy = SoftmaxAgent(actor, critic, discretizer_actor, discretizer_critic,device)
+        self.policy = SoftmaxAgent(actor, critic, discretizer_actor, discretizer_critic,device=device)
         self.opt_actor = torch.optim.Adam(self.policy.actor.parameters(), lr_actor)
 
         self.opt_critic = torch.optim.LBFGS(

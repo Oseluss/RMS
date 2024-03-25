@@ -6,7 +6,7 @@ import torch.nn as nn
 
 
 class SoftmaxAgent(nn.Module):
-    def __init__(self, actor, critic, discretizer_actor=None, discretizer_critic=None, device = torch.device("cpu")) -> None:
+    def __init__(self, actor, critic, discretizer_actor=None, discretizer_critic=None, betha = 1,device = torch.device("cpu")) -> None:
         super(SoftmaxAgent, self).__init__()
 
         self.actor = actor
@@ -14,6 +14,7 @@ class SoftmaxAgent(nn.Module):
 
         self.discretizer_actor = discretizer_actor
         self.discretizer_critic = discretizer_critic
+        self.betha = betha
         self.device = device
 
     def pi(self, state: np.ndarray) -> torch.distributions.Normal:
@@ -23,9 +24,9 @@ class SoftmaxAgent(nn.Module):
         if self.discretizer_actor:
             state = state.numpy().reshape(-1, len(self.discretizer_actor.buckets))
             indices = self.discretizer_actor.get_index(state)
-            logits = self.actor(indices).squeeze()
+            logits = self.betha * self.actor(indices).squeeze()
         else:
-            logits = self.actor(state).squeeze()
+            logits = self.betha * self.actor(state).squeeze()
         #print(logits)
         # Distribution
         pi = torch.distributions.categorical.Categorical(logits=logits)

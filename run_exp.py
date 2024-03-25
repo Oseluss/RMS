@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from dataclasses import dataclass
 import random
-from enviroments import env_hubs0, env_hubs3
+from enviroments import env_hubs0, env_hubs4
 import pickle
 from algorithms.Action_Gen import Action_generation
 from algorithms.RDQL import RDQL_algorithm
@@ -18,15 +18,15 @@ NUMERO_DE_NUCLEOS = 64
 torch.set_num_threads(NUMERO_DE_NUCLEOS)
 
 name_exp = "Exp19"
-Red_name = "hubs3"
+Red_name = "hubs4"
 Demand_Model = "Exp" #Puede ser EXP/MNL
 Qfun_model = "NN" #Puede ser LR/NN
 
 #Tamaño del run
 n = 10
 
-T = 300
-env = env_hubs3(Demand_Model)
+T = 400
+env = env_hubs4(Demand_Model)
 
 #Hiperarametros del algoritmo
 gamma = 1
