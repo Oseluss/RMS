@@ -4,7 +4,7 @@ from .utils import sim_trayectorias
 from .utils import Buffer
 import multiprocessing as mp
 from functools import partial
-import time
+import numpy as np
 
 def worker(
         i: int,
@@ -12,10 +12,51 @@ def worker(
         agent,
         epochs: int,
         max_steps: int,
+        torch_threads
         #result_queue,
         #i:int, 
 ):
-    start_time = time.time()   
+    
+    torch.set_num_threads(torch_threads)
+    buffer = [[],[],[],[],[]]
+    returns = []
+
+    for epoch in range(epochs):
+        state, _ = env.set_initial(s = [0]*env.I)
+        cum_reward = 0
+
+        for t in range(max_steps):
+            action, action_logprob = agent.select_action2(state)
+            buffer[0].append(np.array(action))
+            buffer[1].append(np.array(action_logprob))
+            action = action.cpu()
+            state_next, reward, done, _, _ = env.step(action)
+
+            if t + 1 == max_steps:
+                done = True
+
+            buffer[2].append(reward)
+            buffer[3].append(done)
+            #buffer.states.append(state)
+            buffer[4].append(state)
+
+            cum_reward += reward
+
+            if done:
+                break
+
+            state = state_next
+        returns.append(cum_reward)
+    return buffer, returns
+
+def worker2(
+        i: int,
+        env,
+        agent,
+        epochs: int,
+        max_steps: int,
+        queue,
+): 
     torch.set_num_threads(1)
     buffer = Buffer()
     returns = []
@@ -26,8 +67,8 @@ def worker(
 
         for t in range(max_steps):
             action, action_logprob = agent.select_action2(state)
-            buffer.actions.append(action)
-            buffer.logprobs.append(action_logprob)
+            buffer.actions.append(np.array(action))
+            buffer.logprobs.append(np.array(action_logprob))
             action = action.cpu()
             state_next, reward, done, _, _ = env.step(action)
 
@@ -46,9 +87,59 @@ def worker(
 
             state = state_next
         returns.append(cum_reward)
-    end_time = time.time()
-    print(f"El tiempo de ejecución del hilo {end_time-start_time}")
-    return buffer, returns
+    queue.put((buffer, returns))
+
+
+def worker3(
+        i: int,
+        env,
+        agent,
+        epochs: int,
+        max_steps: int,
+        lock,
+        result_list,
+        torch_threads
+        #result_queue,
+        #i:int, 
+): 
+    torch.set_num_threads(torch_threads)
+    buffer = [[],[],[],[],[]]
+    returns = []
+
+    for epoch in range(epochs):
+        state, _ = env.set_initial(s = [0]*env.I)
+        cum_reward = 0
+
+        for t in range(max_steps):
+            action, action_logprob = agent.select_action2(state)
+            buffer[0].append(np.array(action))
+            buffer[1].append(np.array(action_logprob))
+            action = action.cpu()
+            state_next, reward, done, _, _ = env.step(action)
+
+            if t + 1 == max_steps:
+                done = True
+
+            buffer[2].append(reward)
+            buffer[3].append(done)
+            #buffer.states.append(state)
+            buffer[4].append(state)
+
+            cum_reward += reward
+
+            if done:
+                break
+
+            state = state_next
+        returns.append(cum_reward)
+    lock.acquire()
+    try:
+        # Operación con el valor compartido
+        result_list.append((buffer, returns))
+    finally:
+        # Liberar el bloqueo
+        lock.release()
+
 
 class Trainer:
     def __init__(self, actor_opt, critic_opt):
