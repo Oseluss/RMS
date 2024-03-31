@@ -60,9 +60,14 @@ class PPOSoftmaxNN:
 
     def select_action2(self, state: np.ndarray) -> np.ndarray:
         with torch.no_grad():
-            state = torch.as_tensor(state, device=self.device).double()
-            action, action_logprob = self.policy_old.act(state)
+            state = torch.as_tensor(state).double()
+            #action, action_logprob = self.policy_old.act(state)
+            #state = torch.as_tensor(state, device=self.device).double()
 
+            logits = self.policy_old.betha * self.policy_old.actor(state).squeeze()
+            pi = torch.distributions.categorical.Categorical(logits=logits)
+            action = pi.sample()
+            action_logprob = torch.sum(pi.log_prob(action))
         #self.buffer.states.append(state)
         #self.buffer.actions.append(action)
         #self.buffer.logprobs.append(action_logprob)

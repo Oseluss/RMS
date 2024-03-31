@@ -5,6 +5,7 @@ from .utils import Buffer
 import multiprocessing as mp
 from functools import partial
 import numpy as np
+import time
 
 def worker(
         i: int,
@@ -12,11 +13,9 @@ def worker(
         agent,
         epochs: int,
         max_steps: int,
-        torch_threads
-        #result_queue,
-        #i:int, 
+        torch_threads: int,
 ):
-    
+
     torch.set_num_threads(torch_threads)
     buffer = [[],[],[],[],[]]
     returns = []
@@ -27,8 +26,8 @@ def worker(
 
         for t in range(max_steps):
             action, action_logprob = agent.select_action2(state)
-            buffer[0].append(np.array(action))
-            buffer[1].append(np.array(action_logprob))
+            buffer[0].append(np.array(action.cpu()))
+            buffer[1].append(np.array(action_logprob.cpu()))
             action = action.cpu()
             state_next, reward, done, _, _ = env.step(action)
 
@@ -98,9 +97,7 @@ def worker3(
         max_steps: int,
         lock,
         result_list,
-        torch_threads
-        #result_queue,
-        #i:int, 
+        torch_threads: int,
 ): 
     torch.set_num_threads(torch_threads)
     buffer = [[],[],[],[],[]]
@@ -112,8 +109,8 @@ def worker3(
 
         for t in range(max_steps):
             action, action_logprob = agent.select_action2(state)
-            buffer[0].append(np.array(action))
-            buffer[1].append(np.array(action_logprob))
+            buffer[0].append(np.array(action.cpu()))
+            buffer[1].append(np.array(action_logprob.cpu()))
             action = action.cpu()
             state_next, reward, done, _, _ = env.step(action)
 
@@ -225,25 +222,51 @@ class Trainer:
             num_sim: int,
             initial_offset: int,
         ):
-            mp.set_start_method('spawn')
+            cuda_device = torch.device("cuda")
+            cpu_device = torch.device("cpu")
             returns = []
             timesteps = []
-            with mp.Pool(processes=num_sim) as pool:
-                for u in range(num_updates):
-                    
-                    results = pool.starmap(worker, [(env, agent, epochs, max_steps)]*num_sim)
-                    
-                    for result in results:
-                        agent.buffer.rewards.extend(result[0].rewards)
-                        agent.buffer.terminals.extend(result[0].terminals)
-                        #agent.buffer.states.extend(torch.as_tensor(state, device=agent.device).double() for state in result[0].states)
-                        agent.buffer.states.extend(result[0].states)
-                        agent.buffer.actions.extend(result[0].actions)
-                        agent.buffer.logprobs.extend(result[0].logprobs)
-                        returns.extend(result[1])
 
-                    self._update(agent)
+            for u in range(num_updates):
+                if agent.device == cuda_device:
+                    agent.policy_old.actor.to(cpu_device)
+
+                start_time = time.time()
+                # Crear una lista para mantener los procesos
+                procesos = []
+                manager = mp.Manager()
+                lista_compartida = manager.list()
+                lock = mp.Lock()
+
+                # Crear los procesos solicitados por el usuario
+                for i in range(num_sim):
+                    proceso = mp.Process(target=worker3, args=(i, env, agent, epochs, max_steps,lock,lista_compartida,1))
+                    procesos.append(proceso)
+                    proceso.start()
+
+                # Esperar a que todos los procesos terminen
+                for proceso in procesos:
+                    proceso.join()
+
+                if agent.device == cuda_device:
+                    agent.policy_old.actor.to(cuda_device)
+                end_time = time.time()
+                print(f"Tiempo de muestreo{end_time-start_time}")
+                start_time = time.time()
+                for result in lista_compartida:
+                    agent.buffer.actions.extend(torch.as_tensor(action, device=agent.device).double() for action in result[0][0])
+                    agent.buffer.logprobs.extend(torch.as_tensor(logprob, device=agent.device).double() for logprob in result[0][1])
+                    agent.buffer.rewards.extend(result[0][2])
+                    agent.buffer.terminals.extend(result[0][3])
+                    agent.buffer.states.extend(torch.as_tensor(state, device=agent.device).double() for state in result[0][4])
+                    returns.extend(result[1])
+                end_time = time.time()
+                print(f"Tiempo de guardado de datos {end_time-start_time}")
+                start_time = time.time()
+                self._update(agent)
+                end_time = time.time()
+                print(f"Tiempo optimización {end_time-start_time}")
                     
-                    print(f'{u}/{num_updates}: {returns[-1]} \r', end='')
+                print(f'{u}/{num_updates}: {returns[-1]} \r', end='')
 
             return agent, returns,timesteps
