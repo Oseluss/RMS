@@ -1,6 +1,6 @@
 from typing import Tuple
 import torch
-from .utils import sim_trayectorias
+#from .utils import sim_trayectorias
 from .utils import Buffer
 import multiprocessing as mp
 from functools import partial
@@ -15,7 +15,9 @@ def worker(
         max_steps: int,
         torch_threads: int,
 ):
-
+    n = semilla_aleatoria = np.random.randint(0, 10000) + i
+    np.random.seed(n)
+    torch.manual_seed(n)
     torch.set_num_threads(torch_threads)
     buffer = [[],[],[],[],[]]
     returns = []
@@ -56,6 +58,9 @@ def worker2(
         max_steps: int,
         queue,
 ): 
+    n = semilla_aleatoria = np.random.randint(0, 10000) + i
+    np.random.seed(n)
+    torch.manual_seed(n)
     torch.set_num_threads(1)
     buffer = Buffer()
     returns = []
@@ -99,6 +104,9 @@ def worker3(
         result_list,
         torch_threads: int,
 ): 
+    n = semilla_aleatoria = np.random.randint(0, 10000) + i
+    np.random.seed(n)
+    torch.manual_seed(n)
     torch.set_num_threads(torch_threads)
     buffer = [[],[],[],[],[]]
     returns = []
@@ -171,11 +179,14 @@ class Trainer:
     ):
         returns = []
         timesteps = []
+        mu_list = []
+        sigma_list = []
 
         Rs = []
         muestreador = 1
         num_sim = 1
-
+        #start_time = time.time()
+        last_epoc = 0
         for epoch in range(epochs):
             state, _ = env.set_initial(s = [0]*env.I)
             cum_reward = 0
@@ -190,10 +201,22 @@ class Trainer:
 
                 agent.buffer.rewards.append(reward)
                 agent.buffer.terminals.append(done)
+
+                mu, log_sigma = agent.policy_old.actor(torch.as_tensor(state).double())
+                mu_list.append(mu.detach().numpy())
+                sigma_list.append(log_sigma.detach().numpy())
+
                 cum_reward += reward
 
                 if len(agent.buffer) >= update_freq and epoch > initial_offset:
+                    """end_time = time.time()
+                    print(f'Timepo de muestreo {end_time-start_time} de {epoch-last_epoc}')
+                    last_epoc = epoch
+                    start_time = time.time()"""
                     self._update(agent)
+                    """end_time = time.time()
+                    print(f'Timepo de optimización {end_time-start_time}')
+                    start_time = time.time()"""
 
                 if done:
                     break
@@ -209,7 +232,7 @@ class Trainer:
             timesteps.append(t)
             print(f'{epoch}/{epochs}: {returns[-1]} \r', end='')
 
-        return agent, returns,timesteps
+        return agent, returns,timesteps, mu_list, sigma_list
 
 
     def train2(
@@ -231,7 +254,7 @@ class Trainer:
                 if agent.device == cuda_device:
                     agent.policy_old.actor.to(cpu_device)
 
-                start_time = time.time()
+                #start_time = time.time()
                 # Crear una lista para mantener los procesos
                 procesos = []
                 manager = mp.Manager()
@@ -250,9 +273,9 @@ class Trainer:
 
                 if agent.device == cuda_device:
                     agent.policy_old.actor.to(cuda_device)
-                end_time = time.time()
+                """end_time = time.time()
                 print(f"Tiempo de muestreo{end_time-start_time}")
-                start_time = time.time()
+                start_time = time.time()"""
                 for result in lista_compartida:
                     agent.buffer.actions.extend(torch.as_tensor(action, device=agent.device).double() for action in result[0][0])
                     agent.buffer.logprobs.extend(torch.as_tensor(logprob, device=agent.device).double() for logprob in result[0][1])
@@ -260,12 +283,12 @@ class Trainer:
                     agent.buffer.terminals.extend(result[0][3])
                     agent.buffer.states.extend(torch.as_tensor(state, device=agent.device).double() for state in result[0][4])
                     returns.extend(result[1])
-                end_time = time.time()
+                """end_time = time.time()
                 print(f"Tiempo de guardado de datos {end_time-start_time}")
-                start_time = time.time()
+                start_time = time.time()"""
                 self._update(agent)
-                end_time = time.time()
-                print(f"Tiempo optimización {end_time-start_time}")
+                """end_time = time.time()
+                print(f"Tiempo optimización {end_time-start_time}")"""
                     
                 print(f'{u}/{num_updates}: {returns[-1]} \r', end='')
 

@@ -122,8 +122,9 @@ class ValuePARAFAC(torch.nn.Module):
         return torch.sum(prod, dim=-1)
 
 class PolicyNetwork(torch.nn.Module):
-    def __init__(self, num_inputs, num_hiddens, num_outputs, model='gaussian'):
+    def __init__(self, num_inputs, num_hiddens, num_outputs, init_bias = None , model='gaussian'):
         super(PolicyNetwork, self).__init__()
+        n_i = num_inputs
         self.layers = torch.nn.ModuleList()
         for h in num_hiddens:
             self.layers.append(torch.nn.Linear(num_inputs, h))
@@ -138,18 +139,32 @@ class PolicyNetwork(torch.nn.Module):
             product = num_outputs[0]
         action_layer = torch.nn.Linear(num_inputs, product)
         action_layer.weight.data.mul_(0.1)
-        action_layer.bias.data.mul_(0.0)
+        #action_layer.bias.data.mul_(0.0)
+        if init_bias == None:
+            action_layer.bias.data.mul_(0.0)
+        else:
+            action_layer.bias = torch.nn.Parameter(init_bias.float())
         self.layers.append(action_layer)
 
         self.model = model
         if model == 'gaussian':
-            self.log_sigma = torch.nn.Parameter(torch.zeros(1, num_outputs))
+            self.log_sigma =  torch.nn.ModuleList()
+            self.log_sigma.append(torch.nn.Linear(n_i, num_hiddens[0]))
+            self.log_sigma.append(torch.nn.Tanh())
+            s_layer = torch.nn.Linear(num_hiddens[0],  num_outputs[0])
+            #Modificar el init log_sigma
+            s_layer.bias = torch.nn.Parameter(5*torch.ones(num_outputs[0]))
+            self.log_sigma.append(s_layer)
 
-    def forward(self, x):
+    def forward(self, s):
+        x = s
         for layer in self.layers:
             x = layer(x)
         if self.model == 'gaussian':
-            return x, torch.clamp(self.log_sigma, min=-2.0, max=0.0)
+            z = s
+            for layer in self.log_sigma:
+                z = layer(z)
+            return x, torch.clamp(z, min=-200.0, max=5.0)
         return x.view(-1, *self.num_outputs)
 
 
